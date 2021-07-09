@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Linq;
+using static Monads.Option;
 
 namespace Monads
 {
@@ -6,19 +8,28 @@ namespace Monads
     {
         static void Main(string[] args)
         {
-            var text = "Hello World!";
-
+            var foo = new Foo();
+            
+            foo.Set(1);
+            foo.Set(2);
+            
+            string text = "Hello World!";
             //var foo = text.Bind(x => x);
 
-            var value = text
-                .Bind()
-                .Try(x => x)
-                .Bind(x => x)
-                .Try(x => Parse(x))
-                .Catch<InvalidOperationException>(x => x.ToString())
-                .Catch(x => "catch all")
-                .Bind(x => (string) null)
-                .Bind(x => Parse(x));
+
+            var value = Some(text)
+                .Bind(x => None<string>())
+                .Map(x => "before " + x)
+                .Map(x => x + " after")
+                .Try(Parse)
+                .Match<string>(x => "Some error", x => "")
+                .Map(x => x + "1")
+                .Reduce("default value");
+                
+
+            
+            //(exception, s) => exception is InvalidOperationException ? exception.ToString() : "catch all"
+
 
             Console.WriteLine(value);
         }
@@ -29,5 +40,23 @@ namespace Monads
             throw new NotImplementedException();
         }
 
+    }
+
+    public class Foo
+    {
+        public Option<int> Grade { get; private set; }
+
+        public void Set(int i)
+        {
+            SetOnlyOnce(Grade, i => this.Grade = Some(i), i);
+        }
+
+        public void SetOnlyOnce<T>(Option<T> property, Action<T> setter, T value)
+        {
+           property
+                .Map<Action<T>>(_ => throw new InvalidOperationException())
+                .Reduce(setter)
+                .Invoke(value);
+        }
     }
 }
